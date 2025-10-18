@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env, path::Path};
 
-fn get_current_directory() -> String {
+pub fn get_current_directory() -> String {
     env::current_dir()
         .unwrap()
         .into_os_string()

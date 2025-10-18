@@ -1,6 +1,8 @@
-use common::set_current_directory;
 use reedline::{DefaultPrompt, Reedline, Signal};
-use std::{collections::HashMap, process::Command};
+use std::{
+    collections::HashMap,
+    process::{Command, Stdio},
+};
 
 fn command_successful(buffer: &str, path_files: &HashMap<String, String>) -> bool {
     let parts: Vec<&str> = buffer.split_ascii_whitespace().collect();
@@ -8,7 +10,7 @@ fn command_successful(buffer: &str, path_files: &HashMap<String, String>) -> boo
     if let Some((&command, arguments)) = parts.split_first() {
         if command == "cd" {
             let directory = arguments[0];
-            let success = set_current_directory(directory);
+            let success = common::set_current_directory(directory);
 
             if !success {
                 print!("No such file or directory");
@@ -18,10 +20,12 @@ fn command_successful(buffer: &str, path_files: &HashMap<String, String>) -> boo
         }
 
         if let Some(command) = path_files.get(command) {
-            let output = Command::new(command).args(arguments).output().unwrap();
-            let stdout = String::from_utf8_lossy(&output.stdout);
-
-            print!("{}", stdout);
+            let _ = Command::new(command)
+                .args(arguments)
+                .stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .status();
 
             return true;
         }

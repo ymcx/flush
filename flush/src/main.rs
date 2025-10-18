@@ -1,4 +1,3 @@
-use common::{self};
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline};
 
 mod handle;
