@@ -1,0 +1,8 @@
+[package]
+name = "flush"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+common = { path = "../common" }
+reedline = "0.43.0"
