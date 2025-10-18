@@ -29,9 +29,11 @@ fn command_successful(buffer: &str, path_files: &HashMap<String, String>) -> boo
 
             return true;
         }
+
+        println!("Command not found");
     }
 
-    false
+    true
 }
 
 pub fn command(
