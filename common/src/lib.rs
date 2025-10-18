@@ -1,4 +1,23 @@
-use std::{collections::HashMap, env, path::Path};
+use regex::Regex;
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    path::Path,
+};
+
+pub fn read_arguments() -> (Vec<String>, HashSet<String>) {
+    let regex = Regex::new(r"^-{1,2}").unwrap();
+    let arguments = env::args()
+        .skip(1)
+        .filter(|arg| !arg.starts_with('-'))
+        .collect();
+    let flags = env::args()
+        .filter(|arg| arg.starts_with('-'))
+        .map(|arg| regex.replace(&arg, "").to_string())
+        .collect();
+
+    (arguments, flags)
+}
 
 pub fn get_current_directory() -> String {
     env::current_dir()
