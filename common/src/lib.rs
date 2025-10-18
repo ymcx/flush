@@ -38,7 +38,7 @@ pub fn get_env_path() -> Vec<String> {
         .unwrap()
         .to_string();
 
-    env_path.insert(0, custom_env_path);
+    env_path.push(custom_env_path);
     env_path
 }
 
