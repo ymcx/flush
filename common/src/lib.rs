@@ -1,4 +1,4 @@
-use std::{env, path::Path};
+use std::{collections::HashMap, env, path::Path};
 
 fn get_current_directory() -> String {
     env::current_dir()
@@ -6,6 +6,21 @@ fn get_current_directory() -> String {
         .into_os_string()
         .into_string()
         .unwrap()
+}
+
+pub fn set_current_directory(directory: &str) -> bool {
+    let path = Path::new(directory);
+
+    env::set_current_dir(path).is_ok()
+}
+
+pub fn get_path_files() -> HashMap<String, String> {
+    let path = get_env_path();
+    let path_files_names = get_files_from_directories(&path, true);
+    let path_files_paths = get_files_from_directories(&path, false);
+    let path_files = path_files_names.into_iter().zip(path_files_paths).collect();
+
+    path_files
 }
 
 pub fn get_env_path() -> Vec<String> {
