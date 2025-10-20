@@ -8,7 +8,7 @@ A command line shell written in Rust.
               /            \
              |    meow!    |
     _---_    |  _________.-
-  ／＞　 フ   \/
+  ／＞　 フ    \/
   | 　_　_|
 ／` ミ＿xノ
 ／　　　　 |
