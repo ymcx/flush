@@ -35,7 +35,7 @@ pub fn set_current_directory(directory: &str) -> bool {
     env::set_current_dir(path).is_ok()
 }
 
-pub fn get_path_files(builtin: bool, external: bool) -> HashMap<String, String> {
+pub fn get_env_path_files(builtin: bool, external: bool) -> HashMap<String, String> {
     let path = get_env_path();
     let path_files_names = get_files_from_directories(&path, true, builtin, external);
     let path_files_paths = get_files_from_directories(&path, false, builtin, external);
@@ -44,7 +44,7 @@ pub fn get_path_files(builtin: bool, external: bool) -> HashMap<String, String> 
     path_files
 }
 
-fn get_custom_path() -> String {
+fn get_custom_env_path() -> String {
     env::current_exe()
         .unwrap()
         .parent()
@@ -61,10 +61,18 @@ fn get_env_path() -> Vec<String> {
         .map(String::from)
         .collect();
 
-    let custom_env_path = get_custom_path();
+    let custom_env_path = get_custom_env_path();
 
     env_path.push(custom_env_path);
     env_path
+}
+
+pub fn parse_env_path_commands(path_files: &HashMap<String, String>) -> String {
+    path_files
+        .keys()
+        .map(String::from)
+        .collect::<Vec<String>>()
+        .join(" ")
 }
 
 fn get_files_from_directory(
@@ -73,13 +81,14 @@ fn get_files_from_directory(
     builtin: bool,
     external: bool,
 ) -> Vec<String> {
-    if (!builtin && directory == get_custom_path()) || (!external && directory != get_custom_path())
-    {
-        return Vec::new();
-    }
-
     let path = Path::new(directory);
     let mut all_files = Vec::new();
+
+    if (!builtin && directory == get_custom_env_path())
+        || (!external && directory != get_custom_env_path())
+    {
+        return all_files;
+    }
 
     if let Ok(files) = Path::read_dir(path) {
         for file in files {
@@ -104,14 +113,6 @@ fn get_files_from_directory(
     }
 
     all_files
-}
-
-pub fn parse_path_files(path_files: &HashMap<String, String>) -> String {
-    path_files
-        .keys()
-        .map(String::from)
-        .collect::<Vec<String>>()
-        .join(" ")
 }
 
 fn get_files_from_directories(
