@@ -194,7 +194,7 @@ fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<String> {
         }
     }
 
-    let table = format_table(&all_files)?;
+    let table = format_table(&all_files).unwrap_or_default();
     Some(table)
 }
 
