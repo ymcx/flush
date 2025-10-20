@@ -8,7 +8,7 @@ use std::{
 
 mod flags;
 
-fn get_permissions(metadata: &Metadata) -> String {
+fn get_mode(metadata: &Metadata) -> String {
     let mode = metadata.mode();
     let file_type = match mode & libc::S_IFMT {
         libc::S_IFDIR => 'd',
@@ -16,7 +16,7 @@ fn get_permissions(metadata: &Metadata) -> String {
         _ => '-',
     };
 
-    let perms = [
+    let permissions = [
         (libc::S_IRUSR, 'r'),
         (libc::S_IWUSR, 'w'),
         (libc::S_IXUSR, 'x'),
@@ -28,13 +28,13 @@ fn get_permissions(metadata: &Metadata) -> String {
         (libc::S_IXOTH, 'x'),
     ];
 
-    let mut result = String::with_capacity(10);
-    result.push(file_type);
-    for (bit, ch) in perms {
-        result.push(if mode & bit != 0 { ch } else { '-' });
+    let mut mode_string = String::from(file_type);
+    for (bit, char) in permissions {
+        let permission = if mode & bit != 0 { char } else { '-' };
+        mode_string.push(permission);
     }
 
-    result
+    mode_string
 }
 
 fn get_user(metadata: &Metadata) -> Option<String> {
@@ -103,7 +103,7 @@ fn get_file_name(file: &DirEntry) -> Option<String> {
 }
 
 fn get_file_string(
-    permissions: &str,
+    mode: &str,
     xattr: &str,
     nlink: &str,
     user: &str,
@@ -114,7 +114,7 @@ fn get_file_string(
 ) -> String {
     format!(
         "{}{} {} {} {} {} {} {}",
-        permissions, xattr, nlink, user, group, size, time, file,
+        mode, xattr, nlink, user, group, size, time, file,
     )
 }
 
@@ -123,34 +123,27 @@ fn get_file_string_complete(file: &DirEntry, flags: &Flags) -> Option<String> {
     let metadata = get_metadata(file)?;
     let path = get_path(file);
 
-    let xattr = get_xattr(&path)?;
-    let path_string = get_path_string(&path)?;
-
     let is_hidden = get_is_hidden(&file_name);
 
     if !flags.all && is_hidden {
         return None;
     }
 
+    let path_string = get_path_string(&path)?;
+    let xattr = get_xattr(&path)?;
+
     let group = get_group(&metadata)?;
     let nlink = get_nlink(&metadata);
-    let permissions = get_permissions(&metadata);
+    let mode = get_mode(&metadata);
     let size = get_size(&metadata);
     let time = get_time(&metadata)?;
     let user = get_user(&metadata)?;
 
     let file_name_long = get_file_string(
-        &permissions,
-        &xattr,
-        &nlink,
-        &user,
-        &group,
-        &size,
-        &time,
-        &file_name,
+        &mode, &xattr, &nlink, &user, &group, &size, &time, &file_name,
     );
     let path_string_long = get_file_string(
-        &permissions,
+        &mode,
         &xattr,
         &nlink,
         &user,
