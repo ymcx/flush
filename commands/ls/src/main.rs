@@ -3,7 +3,7 @@ use chrono::{DateTime, Local};
 use std::{
     fs::{DirEntry, Metadata},
     os::unix::fs::MetadataExt,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 mod flags;
@@ -37,104 +37,134 @@ fn get_permissions(metadata: &Metadata) -> String {
     result
 }
 
-fn get_user(metadata: &Metadata) -> String {
-    let user = metadata.uid();
-    let user = users::get_user_by_uid(user).unwrap();
-    let user = user.name().to_str().unwrap().to_string();
-    user
+fn get_user(metadata: &Metadata) -> Option<String> {
+    let uid = metadata.uid();
+    let user = users::get_user_by_uid(uid)?;
+    let user_name = user.name().to_str()?.to_string();
+
+    Some(user_name)
 }
 
-fn get_group(metadata: &Metadata) -> String {
-    let group = metadata.gid();
-    let group = users::get_group_by_gid(group).unwrap();
-    let group = group.name().to_str().unwrap().to_string();
-    group
+fn get_group(metadata: &Metadata) -> Option<String> {
+    let gid = metadata.gid();
+    let group = users::get_group_by_gid(gid)?;
+    let group_name = group.name().to_str()?.to_string();
+
+    Some(group_name)
 }
 
 fn get_size(metadata: &Metadata) -> String {
     metadata.len().to_string()
 }
 
-fn get_time(metadata: &Metadata) -> String {
-    let time = metadata.modified().unwrap();
-    let time: DateTime<Local> = time.into();
-    let time = time.format("%b %e %H:%M").to_string();
-    time
+fn get_time(metadata: &Metadata) -> Option<String> {
+    let time: DateTime<Local> = metadata.modified().ok()?.into();
+    let time_formatted = time.format("%b %e %H:%M").to_string();
+
+    Some(time_formatted)
 }
 
 fn get_nlink(metadata: &Metadata) -> String {
     metadata.nlink().to_string()
 }
 
-fn get_xattr(file: &DirEntry) -> String {
-    let xatt = xattr::list(&file.path()).unwrap().next().unwrap();
-    let xatt = xatt.to_string_lossy();
-    let xatt = match xatt.to_string().as_str() {
-        "security.selinux" => ".",
+fn get_xattr(path: &PathBuf) -> Option<String> {
+    let xattr = xattr::list(path).ok()?.next()?;
+    let xattr_suffix = match xattr.to_str()? {
         "system.posix_acl_access" | "system.posix_acl_default" => "+",
+        "security.selinux" => ".",
         _ => "",
-    };
-    xatt.to_string()
+    }
+    .to_string();
+
+    Some(xattr_suffix)
 }
 
-fn get_is_hidden(file: &DirEntry) -> bool {
-    file.file_name().into_string().unwrap().starts_with('.')
+fn get_is_hidden(file_name: &str) -> bool {
+    file_name.starts_with('.')
 }
 
-fn get_metadata(file: &DirEntry) -> Metadata {
-    file.metadata().unwrap()
+fn get_metadata(file: &DirEntry) -> Option<Metadata> {
+    file.metadata().ok()
 }
 
-fn get_path(file: &DirEntry) -> String {
+fn get_path_string(path: &PathBuf) -> Option<String> {
+    let path_string = path.to_str()?.to_string();
+
+    Some(path_string)
+}
+
+fn get_path(file: &DirEntry) -> PathBuf {
     file.path()
-        .into_os_string()
-        .into_string()
-        .unwrap_or_default()
 }
 
-fn get_file_name(file: &DirEntry) -> String {
-    file.file_name()
-        .into_string()
-        .unwrap_or_default()
-        .to_string()
+fn get_file_name(file: &DirEntry) -> Option<String> {
+    file.file_name().into_string().ok()
 }
 
-fn get_file_string(file: &DirEntry, flags: &Flags) -> Option<String> {
+fn get_file_string(
+    permissions: &str,
+    xattr: &str,
+    nlink: &str,
+    user: &str,
+    group: &str,
+    size: &str,
+    time: &str,
+    file: &str,
+) -> String {
+    format!(
+        "{}{} {} {} {} {} {} {}",
+        permissions, xattr, nlink, user, group, size, time, file,
+    )
+}
+
+fn get_file_string_complete(file: &DirEntry, flags: &Flags) -> Option<String> {
+    let file_name = get_file_name(file)?;
+    let metadata = get_metadata(file)?;
     let path = get_path(file);
-    let file_name = get_file_name(file);
-    let is_hidden = get_is_hidden(file);
-    let xatt = get_xattr(file);
-    let metadata = get_metadata(file);
 
-    let permissions = get_permissions(&metadata);
-    let user = get_user(&metadata);
-    let group = get_group(&metadata);
-    let size = get_size(&metadata);
-    let time = get_time(&metadata);
-    let nd = get_nlink(&metadata);
+    let xattr = get_xattr(&path)?;
+    let path_string = get_path_string(&path)?;
 
-    let file_name_long = format!(
-        "{}{} {} {} {} {} {} {}",
-        permissions, xatt, nd, user, group, size, time, file_name,
-    );
-
-    let path_long = format!(
-        "{}{} {} {} {} {} {} {}",
-        permissions, xatt, nd, user, group, size, time, path,
-    );
+    let is_hidden = get_is_hidden(&file_name);
 
     if !flags.all && is_hidden {
-        None
-    } else if !flags.long && !flags.full_path {
-        Some(file_name)
-    } else if !flags.long && flags.full_path {
-        Some(path)
-    } else if flags.long && !flags.full_path {
-        Some(file_name_long)
-    } else if flags.long && flags.full_path {
-        Some(path_long)
-    } else {
-        None
+        return None;
+    }
+
+    let group = get_group(&metadata)?;
+    let nlink = get_nlink(&metadata);
+    let permissions = get_permissions(&metadata);
+    let size = get_size(&metadata);
+    let time = get_time(&metadata)?;
+    let user = get_user(&metadata)?;
+
+    let file_name_long = get_file_string(
+        &permissions,
+        &xattr,
+        &nlink,
+        &user,
+        &group,
+        &size,
+        &time,
+        &file_name,
+    );
+    let path_string_long = get_file_string(
+        &permissions,
+        &xattr,
+        &nlink,
+        &user,
+        &group,
+        &size,
+        &time,
+        &path_string,
+    );
+
+    match (flags.long, flags.full_path) {
+        (false, false) => Some(file_name),
+        (true, false) => Some(file_name_long),
+        (false, true) => Some(path_string),
+        (true, true) => Some(path_string_long),
     }
 }
 
@@ -153,7 +183,7 @@ fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<Vec<String
     if let Ok(files) = Path::read_dir(path) {
         for file in files {
             let file = file.unwrap();
-            let file_string = get_file_string(&file, flags);
+            let file_string = get_file_string_complete(&file, flags);
 
             if let Some(file_string) = file_string {
                 all_files.push(file_string);
