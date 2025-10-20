@@ -102,23 +102,7 @@ fn get_file_name(file: &DirEntry) -> Option<String> {
     file.file_name().into_string().ok()
 }
 
-fn get_file_string(
-    mode: &str,
-    xattr: &str,
-    nlink: &str,
-    user: &str,
-    group: &str,
-    size: &str,
-    time: &str,
-    file: &str,
-) -> String {
-    format!(
-        "{}{} {} {} {} {} {} {}",
-        mode, xattr, nlink, user, group, size, time, file,
-    )
-}
-
-fn get_file_string_complete(file: &DirEntry, flags: &Flags) -> Option<String> {
+fn get_file_string(file: &DirEntry, flags: &Flags) -> Option<Vec<String>> {
     let file_name = get_file_name(file)?;
     let metadata = get_metadata(file)?;
     let path = get_path(file);
@@ -139,29 +123,56 @@ fn get_file_string_complete(file: &DirEntry, flags: &Flags) -> Option<String> {
     let time = get_time(&metadata)?;
     let user = get_user(&metadata)?;
 
-    let file_name_long = get_file_string(
-        &mode, &xattr, &nlink, &user, &group, &size, &time, &file_name,
-    );
-    let path_string_long = get_file_string(
-        &mode,
-        &xattr,
-        &nlink,
-        &user,
-        &group,
-        &size,
-        &time,
-        &path_string,
-    );
+    let file_string = match (flags.long, flags.full_path) {
+        (false, false) => vec![file_name],
+        (false, true) => vec![path_string],
+        (true, false) => vec![mode, xattr, nlink, user, group, size, time, file_name],
+        (true, true) => vec![mode, xattr, nlink, user, group, size, time, path_string],
+    };
 
-    match (flags.long, flags.full_path) {
-        (false, false) => Some(file_name),
-        (true, false) => Some(file_name_long),
-        (false, true) => Some(path_string),
-        (true, true) => Some(path_string_long),
-    }
+    Some(file_string)
 }
 
-fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<Vec<String>> {
+fn find_column_widths(rows: &Vec<Vec<String>>) -> Option<Vec<usize>> {
+    let column_amount = rows.first()?.len();
+    let mut column_widths = vec![0; column_amount];
+
+    for row in rows {
+        for (column, item) in row.iter().enumerate() {
+            column_widths[column] = column_widths[column].max(item.len());
+        }
+    }
+
+    Some(column_widths)
+}
+
+fn format_table(rows: &Vec<Vec<String>>) -> Option<String> {
+    let column_widths = find_column_widths(rows)?;
+    let mut table = String::new();
+
+    for row in rows {
+        for (column, item) in row.iter().enumerate() {
+            let starts_with_digit = item.chars().next()?.is_ascii_digit();
+            let padded = if starts_with_digit {
+                format!("{:>width$}", item, width = column_widths[column])
+            } else {
+                format!("{:width$}", item, width = column_widths[column])
+            };
+
+            table.push_str(&padded);
+            if column != 0 && column != row.len() - 1 {
+                table.push(' ');
+            }
+        }
+
+        table.push('\n');
+    }
+
+    table.pop();
+    Some(table)
+}
+
+fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<String> {
     if directory.is_empty() {
         let directory = common::get_current_directory();
         return get_files_from_directory(&directory, flags);
@@ -175,8 +186,7 @@ fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<Vec<String
     let mut all_files = Vec::new();
     if let Ok(files) = Path::read_dir(path) {
         for file in files {
-            let file = file.unwrap();
-            let file_string = get_file_string_complete(&file, flags);
+            let file_string = get_file_string(&file.ok()?, flags);
 
             if let Some(file_string) = file_string {
                 all_files.push(file_string);
@@ -184,15 +194,16 @@ fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<Vec<String
         }
     }
 
-    Some(all_files)
+    let table = format_table(&all_files)?;
+    Some(table)
 }
 
-fn get_files_from_directories(directories: &Vec<String>, flags: &Flags) -> Option<Vec<String>> {
+fn get_files_from_directories(directories: &Vec<String>, flags: &Flags) -> Option<String> {
     if directories.len() == 0 {
         return get_files_from_directory("", flags);
     }
 
-    let all_files: Vec<Option<Vec<String>>> = directories
+    let all_files: Vec<Option<String>> = directories
         .iter()
         .map(|directory| get_files_from_directory(directory, flags))
         .collect();
@@ -202,11 +213,8 @@ fn get_files_from_directories(directories: &Vec<String>, flags: &Flags) -> Optio
         return None;
     }
 
-    let files = all_files
-        .into_iter()
-        .filter_map(|result| result)
-        .flatten()
-        .collect();
+    let files: Vec<String> = all_files.into_iter().filter_map(|result| result).collect();
+    let files = files.join("\n");
 
     Some(files)
 }
@@ -217,7 +225,7 @@ fn main() {
     let files = get_files_from_directories(&arguments, &flags);
 
     if let Some(files) = files {
-        println!("{}", files.join("\n"));
+        println!("{}", files);
     } else {
         println!("No such file or directory");
     }
