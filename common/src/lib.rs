@@ -5,6 +5,8 @@ use std::{
     path::Path,
 };
 
+pub mod file;
+
 pub fn read_arguments() -> (Vec<String>, HashSet<String>) {
     let regex = Regex::new(r"^-{1,2}").unwrap();
     let arguments = env::args()
@@ -33,13 +35,23 @@ pub fn set_current_directory(directory: &str) -> bool {
     env::set_current_dir(path).is_ok()
 }
 
-pub fn get_path_files() -> HashMap<String, String> {
+pub fn get_path_files(builtin: bool, external: bool) -> HashMap<String, String> {
     let path = get_env_path();
-    let path_files_names = get_files_from_directories(&path, true);
-    let path_files_paths = get_files_from_directories(&path, false);
+    let path_files_names = get_files_from_directories(&path, true, builtin, external);
+    let path_files_paths = get_files_from_directories(&path, false, builtin, external);
     let path_files = path_files_names.into_iter().zip(path_files_paths).collect();
 
     path_files
+}
+
+fn get_custom_path() -> String {
+    env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string()
 }
 
 fn get_env_path() -> Vec<String> {
@@ -49,25 +61,36 @@ fn get_env_path() -> Vec<String> {
         .map(String::from)
         .collect();
 
-    let custom_env_path = env::current_exe().unwrap();
-    let custom_env_path = custom_env_path
-        .parent()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let custom_env_path = get_custom_path();
 
     env_path.push(custom_env_path);
     env_path
 }
 
-fn get_files_from_directory(directory: &str, name_only: bool) -> Vec<String> {
+fn get_files_from_directory(
+    directory: &str,
+    name_only: bool,
+    builtin: bool,
+    external: bool,
+) -> Vec<String> {
+    if (!builtin && directory == get_custom_path()) || (!external && directory != get_custom_path())
+    {
+        return Vec::new();
+    }
+
     let path = Path::new(directory);
     let mut all_files = Vec::new();
 
     if let Ok(files) = Path::read_dir(path) {
         for file in files {
             let file = file.unwrap();
+            let metadata = file::get_metadata(&file).unwrap();
+            let mode = file::get_mode(&metadata);
+
+            if mode.contains('d') || !mode.contains('x') {
+                continue;
+            }
+
             let file_string = if name_only {
                 file.file_name()
             } else {
@@ -83,9 +106,22 @@ fn get_files_from_directory(directory: &str, name_only: bool) -> Vec<String> {
     all_files
 }
 
-fn get_files_from_directories(directories: &Vec<String>, name_only: bool) -> Vec<String> {
+pub fn parse_path_files(path_files: &HashMap<String, String>) -> String {
+    path_files
+        .keys()
+        .map(String::from)
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+fn get_files_from_directories(
+    directories: &Vec<String>,
+    name_only: bool,
+    builtin: bool,
+    external: bool,
+) -> Vec<String> {
     directories
         .iter()
-        .flat_map(|directory| get_files_from_directory(directory, name_only))
+        .flat_map(|directory| get_files_from_directory(directory, name_only, builtin, external))
         .collect()
 }

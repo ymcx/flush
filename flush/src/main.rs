@@ -8,7 +8,7 @@ fn main() {
         DefaultPromptSegment::WorkingDirectory,
         DefaultPromptSegment::Empty,
     );
-    let path_files = common::get_path_files();
+    let path_files = common::get_path_files(true, true);
 
     while handle::command(&mut reedline, &prompt, &path_files) {}
 }

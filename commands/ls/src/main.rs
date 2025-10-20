@@ -1,127 +1,29 @@
 use crate::flags::Flags;
-use chrono::{DateTime, Local};
-use std::{
-    fs::{DirEntry, Metadata},
-    os::unix::fs::MetadataExt,
-    path::{Path, PathBuf},
-};
+use common::file;
+use std::{fs::DirEntry, path::Path};
 
 mod flags;
 
-fn get_mode(metadata: &Metadata) -> String {
-    let mode = metadata.mode();
-    let file_type = match mode & libc::S_IFMT {
-        libc::S_IFDIR => 'd',
-        libc::S_IFLNK => 'l',
-        _ => '-',
-    };
-
-    let permissions = [
-        (libc::S_IRUSR, 'r'),
-        (libc::S_IWUSR, 'w'),
-        (libc::S_IXUSR, 'x'),
-        (libc::S_IRGRP, 'r'),
-        (libc::S_IWGRP, 'w'),
-        (libc::S_IXGRP, 'x'),
-        (libc::S_IROTH, 'r'),
-        (libc::S_IWOTH, 'w'),
-        (libc::S_IXOTH, 'x'),
-    ];
-
-    let mut mode_string = String::from(file_type);
-    for (bit, char) in permissions {
-        let permission = if mode & bit != 0 { char } else { '-' };
-        mode_string.push(permission);
-    }
-
-    mode_string
-}
-
-fn get_user(metadata: &Metadata) -> Option<String> {
-    let uid = metadata.uid();
-    let user = users::get_user_by_uid(uid)?;
-    let user_name = user.name().to_str()?.to_string();
-
-    Some(user_name)
-}
-
-fn get_group(metadata: &Metadata) -> Option<String> {
-    let gid = metadata.gid();
-    let group = users::get_group_by_gid(gid)?;
-    let group_name = group.name().to_str()?.to_string();
-
-    Some(group_name)
-}
-
-fn get_size(metadata: &Metadata) -> String {
-    metadata.len().to_string()
-}
-
-fn get_time(metadata: &Metadata) -> Option<String> {
-    let time: DateTime<Local> = metadata.modified().ok()?.into();
-    let time_formatted = time.format("%b %e %H:%M").to_string();
-
-    Some(time_formatted)
-}
-
-fn get_nlink(metadata: &Metadata) -> String {
-    metadata.nlink().to_string()
-}
-
-fn get_xattr(path: &PathBuf) -> Option<String> {
-    let xattr = xattr::list(path).ok()?.next()?;
-    let xattr_suffix = match xattr.to_str()? {
-        "system.posix_acl_access" | "system.posix_acl_default" => "+",
-        "security.selinux" => ".",
-        _ => "",
-    }
-    .to_string();
-
-    Some(xattr_suffix)
-}
-
-fn get_is_hidden(file_name: &str) -> bool {
-    file_name.starts_with('.')
-}
-
-fn get_metadata(file: &DirEntry) -> Option<Metadata> {
-    file.metadata().ok()
-}
-
-fn get_path_string(path: &PathBuf) -> Option<String> {
-    let path_string = path.to_str()?.to_string();
-
-    Some(path_string)
-}
-
-fn get_path(file: &DirEntry) -> PathBuf {
-    file.path()
-}
-
-fn get_file_name(file: &DirEntry) -> Option<String> {
-    file.file_name().into_string().ok()
-}
-
 fn get_file_string(file: &DirEntry, flags: &Flags) -> Option<Vec<String>> {
-    let file_name = get_file_name(file)?;
-    let metadata = get_metadata(file)?;
-    let path = get_path(file);
+    let file_name = file::get_file_name(file)?;
+    let metadata = file::get_metadata(file)?;
+    let path = file::get_path(file);
 
-    let is_hidden = get_is_hidden(&file_name);
+    let is_hidden = file::get_is_hidden(&file_name);
 
     if !flags.all && is_hidden {
         return None;
     }
 
-    let path_string = get_path_string(&path)?;
-    let xattr = get_xattr(&path)?;
+    let path_string = file::get_path_string(&path)?;
+    let xattr = file::get_xattr(&path)?;
 
-    let group = get_group(&metadata)?;
-    let nlink = get_nlink(&metadata);
-    let mode = get_mode(&metadata);
-    let size = get_size(&metadata);
-    let time = get_time(&metadata)?;
-    let user = get_user(&metadata)?;
+    let group = file::get_group(&metadata)?;
+    let nlink = file::get_nlink(&metadata);
+    let mode = file::get_mode(&metadata);
+    let size = file::get_size(&metadata);
+    let time = file::get_time(&metadata)?;
+    let user = file::get_user(&metadata)?;
 
     let file_string = match (flags.long, flags.full_path) {
         (false, false) => vec![file_name],
