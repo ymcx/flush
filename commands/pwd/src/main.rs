@@ -1,5 +1,7 @@
 fn main() {
-    let pwd = common::get_current_directory();
-
-    println!("{}", pwd);
+    if let Some(pwd) = common::get_current_directory() {
+        println!("{}", pwd);
+    } else {
+        println!("Couldn't retrieve the current directory");
+    }
 }

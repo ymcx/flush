@@ -76,7 +76,7 @@ fn format_table(rows: &Vec<Vec<String>>) -> Option<String> {
 
 fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<String> {
     if directory.is_empty() {
-        let directory = common::get_current_directory();
+        let directory = common::get_current_directory()?;
         return get_files_from_directory(&directory, flags);
     }
 
