@@ -11,30 +11,30 @@ fn get_random_string(rng: &mut ThreadRng, length: usize) -> String {
         .collect()
 }
 
-fn read_file(path: &str) -> String {
-    let mut file = File::open(path).unwrap();
+fn read_file(path: &str) -> Option<String> {
+    let mut file = File::open(path).ok()?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
+    file.read_to_string(&mut contents).ok()?;
 
-    contents
+    Some(contents)
 }
 
-fn write_file(path: &str, contents: &str) {
-    let mut file = OpenOptions::new().write(true).open(path).unwrap();
-    file.write_all(contents.as_bytes()).unwrap();
+fn write_file(path: &str, contents: &str) -> Option<()> {
+    let mut file = OpenOptions::new().write(true).open(path).ok()?;
+    file.write_all(contents.as_bytes()).ok()
 }
 
-fn trash_file(rng: &mut ThreadRng, path: &str) {
+fn trash_file(rng: &mut ThreadRng, path: &str) -> Option<()> {
     let mut contents_new = String::new();
 
-    for line in read_file(path).split("\n") {
+    for line in read_file(path)?.split("\n") {
         let line_new = get_random_string(rng, line.len());
         contents_new.push_str(&line_new);
         contents_new.push('\n')
     }
     contents_new.pop();
 
-    write_file(path, &contents_new);
+    write_file(path, &contents_new)
 }
 
 fn main() {
@@ -42,6 +42,9 @@ fn main() {
     let mut rng = rand::rng();
 
     for argument in arguments {
-        trash_file(&mut rng, &argument);
+        if trash_file(&mut rng, &argument).is_none() {
+            println!("Unable to trash file {}", argument);
+            break;
+        }
     }
 }
