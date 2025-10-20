@@ -5,6 +5,7 @@ members = [
   "commands/help",
   "commands/ls",
   "commands/pwd",
+  "commands/twash",
   "commands/write",
   "common",
   "flush"

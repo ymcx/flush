@@ -3,10 +3,17 @@
 A command line shell written in Rust.
 
 ```
-~/Downloads〉catsay meow!
+~/Downloads〉cat file.txt
+the best shell is
+FLUSH OFC
+~/Downloads〉twash file.txt
+~/Downloads〉cat file.txt
+Qm2qB4c9mHpKCGRHb
+iX9OI0LOd
+~/Downloads〉catsay LMAO!
                _----------_
               /            \
-             |    meow!    |
+             |    LMAO!    |
     _---_    |  _________.-
   ／＞　 フ    \/
   | 　_　_|
