@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "commands/catsay",
   "commands/help",
   "commands/ls",
   "commands/pwd",
