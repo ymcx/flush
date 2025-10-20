@@ -124,8 +124,21 @@ fn get_files_from_directories(directories: &Vec<String>, flags: &Flags) -> Optio
 fn main() {
     let (arguments, flags) = common::read_arguments();
     let flags = Flags::new(&flags);
-    let files = get_files_from_directories(&arguments, &flags);
 
+    if flags.help {
+        println!(
+            "{}\n\n{}\n{}\n{}\n{}",
+            "Usage: ls [OPTIONS] [FILES]",
+            "-a  show files/directories starting with a dot",
+            "-f  show the full path instead of the filename",
+            "-l  show additional information",
+            "-h  display this epic document",
+        );
+
+        return;
+    }
+
+    let files = get_files_from_directories(&arguments, &flags);
     if let Some(files) = files {
         println!("{}", files);
     } else {
