@@ -35,8 +35,8 @@ pub fn set_current_directory(directory: &str) -> bool {
 
 pub fn get_path_files() -> HashMap<String, String> {
     let path = get_env_path();
-    let path_files_names = get_files_from_directories(&path, true, true).unwrap();
-    let path_files_paths = get_files_from_directories(&path, false, true).unwrap();
+    let path_files_names = get_files_from_directories(&path, true);
+    let path_files_paths = get_files_from_directories(&path, false);
     let path_files = path_files_names.into_iter().zip(path_files_paths).collect();
 
     path_files
@@ -61,61 +61,31 @@ pub fn get_env_path() -> Vec<String> {
     env_path
 }
 
-pub fn get_files_from_directory(directory: &str, name_only: bool) -> Option<Vec<String>> {
-    let directory = if directory.is_empty() {
-        get_current_directory()
-    } else {
-        directory.to_string()
-    };
-
-    let full_path = Path::new(&directory);
-    if !full_path.exists() {
-        return None;
-    }
-
+fn get_files_from_directory(directory: &str, name_only: bool) -> Vec<String> {
+    let path = Path::new(directory);
     let mut all_files = Vec::new();
-    if let Ok(files) = Path::read_dir(full_path) {
+
+    if let Ok(files) = Path::read_dir(path) {
         for file in files {
             let file = file.unwrap();
-            let os_string = if name_only {
+            let file_string = if name_only {
                 file.file_name()
             } else {
                 file.path().into_os_string()
-            };
-            let string = os_string.into_string().unwrap_or_default();
+            }
+            .into_string()
+            .unwrap();
 
-            all_files.push(string);
+            all_files.push(file_string);
         }
     }
 
-    Some(all_files)
+    all_files
 }
 
-pub fn get_files_from_directories(
-    directories: &Vec<String>,
-    name_only: bool,
-    ignore_non_existing: bool,
-) -> Option<Vec<String>> {
-    if directories.len() == 0 {
-        return get_files_from_directory("", name_only);
-    }
-
-    let all_files: Vec<Option<Vec<String>>> = directories
+fn get_files_from_directories(directories: &Vec<String>, name_only: bool) -> Vec<String> {
+    directories
         .iter()
-        .map(|directory| get_files_from_directory(directory, name_only))
-        .collect();
-
-    let found_all = all_files.iter().all(|result| result.is_some());
-
-    let collected: Vec<String> = all_files
-        .into_iter()
-        .filter_map(|result| result)
-        .flatten()
-        .collect();
-
-    if found_all || ignore_non_existing {
-        Some(collected)
-    } else {
-        None
-    }
+        .flat_map(|directory| get_files_from_directory(directory, name_only))
+        .collect()
 }
