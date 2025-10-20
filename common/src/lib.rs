@@ -42,7 +42,7 @@ pub fn get_path_files() -> HashMap<String, String> {
     path_files
 }
 
-pub fn get_env_path() -> Vec<String> {
+fn get_env_path() -> Vec<String> {
     let mut env_path: Vec<String> = env::var("PATH")
         .unwrap_or_default()
         .split(":")

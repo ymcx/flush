@@ -38,17 +38,17 @@ fn get_permissions(metadata: &Metadata) -> String {
 }
 
 fn get_user(metadata: &Metadata) -> String {
-    let owner = metadata.uid();
-    let owner = users::get_user_by_uid(owner).unwrap();
-    let owner = owner.name().to_str().unwrap().to_string();
-    owner
+    let user = metadata.uid();
+    let user = users::get_user_by_uid(user).unwrap();
+    let user = user.name().to_str().unwrap().to_string();
+    user
 }
 
 fn get_group(metadata: &Metadata) -> String {
-    let owner2 = metadata.gid();
-    let owner2 = users::get_group_by_gid(owner2).unwrap();
-    let owner2 = owner2.name().to_str().unwrap().to_string();
-    owner2
+    let group = metadata.gid();
+    let group = users::get_group_by_gid(group).unwrap();
+    let group = group.name().to_str().unwrap().to_string();
+    group
 }
 
 fn get_size(metadata: &Metadata) -> String {
@@ -107,20 +107,20 @@ fn get_file_string(file: &DirEntry, flags: &Flags) -> Option<String> {
     let metadata = get_metadata(file);
 
     let permissions = get_permissions(&metadata);
-    let owner = get_user(&metadata);
-    let owner2 = get_group(&metadata);
+    let user = get_user(&metadata);
+    let group = get_group(&metadata);
     let size = get_size(&metadata);
     let time = get_time(&metadata);
     let nd = get_nlink(&metadata);
 
     let file_name_long = format!(
         "{}{} {} {} {} {} {} {}",
-        permissions, xatt, nd, owner, owner2, size, time, file_name,
+        permissions, xatt, nd, user, group, size, time, file_name,
     );
 
     let path_long = format!(
         "{}{} {} {} {} {} {} {}",
-        permissions, xatt, nd, owner, owner, size, time, path,
+        permissions, xatt, nd, user, group, size, time, path,
     );
 
     if !flags.all && is_hidden {
@@ -134,27 +134,28 @@ fn get_file_string(file: &DirEntry, flags: &Flags) -> Option<String> {
     } else if flags.long && flags.full_path {
         Some(path_long)
     } else {
-        Some("".to_string())
+        None
     }
 }
 
-pub fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<Vec<String>> {
-    let directory = if directory.is_empty() {
-        common::get_current_directory()
-    } else {
-        directory.to_string()
-    };
+fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<Vec<String>> {
+    if directory.is_empty() {
+        let directory = common::get_current_directory();
+        return get_files_from_directory(&directory, flags);
+    }
 
-    let full_path = Path::new(&directory);
-    if !full_path.exists() {
+    let path = Path::new(directory);
+    if !path.exists() {
         return None;
     }
 
     let mut all_files = Vec::new();
-    if let Ok(files) = Path::read_dir(full_path) {
+    if let Ok(files) = Path::read_dir(path) {
         for file in files {
             let file = file.unwrap();
-            if let Some(file_string) = get_file_string(&file, flags) {
+            let file_string = get_file_string(&file, flags);
+
+            if let Some(file_string) = file_string {
                 all_files.push(file_string);
             }
         }
@@ -163,7 +164,7 @@ pub fn get_files_from_directory(directory: &str, flags: &Flags) -> Option<Vec<St
     Some(all_files)
 }
 
-pub fn get_files_from_directories(directories: &Vec<String>, flags: &Flags) -> Option<Vec<String>> {
+fn get_files_from_directories(directories: &Vec<String>, flags: &Flags) -> Option<Vec<String>> {
     if directories.len() == 0 {
         return get_files_from_directory("", flags);
     }
@@ -174,18 +175,17 @@ pub fn get_files_from_directories(directories: &Vec<String>, flags: &Flags) -> O
         .collect();
 
     let found_all = all_files.iter().all(|result| result.is_some());
+    if !found_all {
+        return None;
+    }
 
-    let collected: Vec<String> = all_files
+    let files = all_files
         .into_iter()
         .filter_map(|result| result)
         .flatten()
         .collect();
 
-    if found_all {
-        Some(collected)
-    } else {
-        None
-    }
+    Some(files)
 }
 
 fn main() {
