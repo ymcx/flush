@@ -2,6 +2,8 @@
 
 A command line shell written in Rust.
 
+![Showcase](assets/video.mp4)
+
 ```
 ~/Downloads〉cat file.txt
 the best shell is
