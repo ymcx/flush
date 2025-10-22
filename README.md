@@ -2,7 +2,7 @@
 
 A command line shell written in Rust.
 
-![Showcase](assets/video.mp4)
+![Showcase](assets/showcase.gif)
 
 ```
 ~/Downloads〉cat file.txt
