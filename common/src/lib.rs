@@ -35,10 +35,15 @@ pub fn get_current_directory() -> Option<String> {
     Some(current_directory)
 }
 
-pub fn set_current_directory(directory: &str) -> bool {
+pub fn set_current_directory(directory: &str) -> Option<()> {
+    if directory.is_empty() {
+        let directory = get_current_directory()?;
+        return set_current_directory(&directory);
+    }
+
     let path = Path::new(directory);
 
-    env::set_current_dir(path).is_ok()
+    env::set_current_dir(path).ok()
 }
 
 pub fn get_env_path_files(builtin: bool, external: bool) -> HashMap<String, String> {

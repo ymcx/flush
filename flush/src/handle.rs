@@ -4,19 +4,26 @@ use std::{
     process::{Command, Stdio},
 };
 
+fn cd(arguments: &[&str]) -> bool {
+    let directory = match arguments.get(0) {
+        Some(directory) => *directory,
+        None => "",
+    };
+
+    let result = common::set_current_directory(directory);
+    if result.is_none() {
+        print!("No such file or directory");
+    }
+
+    true
+}
+
 fn command_successful(buffer: &str, path_files: &HashMap<String, String>) -> bool {
     let parts: Vec<&str> = buffer.split_ascii_whitespace().collect();
 
     if let Some((&command, arguments)) = parts.split_first() {
         if command == "cd" {
-            let directory = arguments[0];
-            let success = common::set_current_directory(directory);
-
-            if !success {
-                print!("No such file or directory");
-            }
-
-            return true;
+            return cd(arguments);
         }
 
         if let Some(command) = path_files.get(command) {
